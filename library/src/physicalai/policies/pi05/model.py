@@ -371,7 +371,7 @@ class PaliGemmaWithExpertModel(nn.Module):
             msg = f"Invalid precision: {precision}"
             raise ValueError(msg)
 
-        params_to_keep_float32 = [
+        params_to_keep_float32 = [] if precision == "bfloat16" else [
             "vision_tower",
             "multi_modal_projector",
             "input_layernorm",
@@ -494,6 +494,7 @@ class PaliGemmaWithExpertModel(nn.Module):
                         adarms_cond,
                         use_reentrant=False,
                         preserve_rng_state=False,
+                        determinism_check="none",
                         paligemma=self.paligemma,
                         gemma_expert=self.gemma_expert,
                     )
@@ -525,6 +526,7 @@ class PaliGemmaWithExpertModel(nn.Module):
                     adarms_cond,
                     use_reentrant=False,
                     preserve_rng_state=False,
+                    determinism_check="none",
                 )
             else:
                 outputs_embeds = compute_final_norms(inputs_embeds, adarms_cond)
@@ -738,6 +740,7 @@ class Pi05Model(Model):
                 *args,
                 use_reentrant=False,
                 preserve_rng_state=False,
+                determinism_check="none",
                 **kwargs,
             )
         return func(*args, **kwargs)
@@ -882,11 +885,12 @@ class Pi05Model(Model):
         time_emb = time_emb.type(dtype=timestep.dtype)
 
         def action_proj_func(noisy_actions: Tensor) -> Tensor:
-            return self.action_in_proj(noisy_actions)
+            return self.action_in_proj(noisy_actions.to(self.action_in_proj.weight.dtype))
 
         action_emb = self._apply_checkpoint(action_proj_func, noisy_actions)
 
         def time_mlp_func(time_emb: Tensor) -> Tensor:
+            time_emb = time_emb.to(self.time_mlp_in.weight.dtype)
             x = self.time_mlp_in(time_emb)
             x = F.silu(x)
             x = self.time_mlp_out(x)
@@ -904,6 +908,7 @@ class Pi05Model(Model):
             target_time_emb = target_time_emb.type(dtype=timestep.dtype)
 
             def target_time_mlp_func(emb: Tensor) -> Tensor:
+                emb = emb.to(self.target_time_mlp_in.weight.dtype)
                 x = self.target_time_mlp_in(emb)
                 x = F.silu(x)
                 return self.target_time_mlp_out(x)
@@ -992,7 +997,7 @@ class Pi05Model(Model):
             )
 
         suffix_out = suffix_out[:, -self._chunk_size :]
-        suffix_out = suffix_out.to(dtype=torch.float32)
+        suffix_out = suffix_out.to(dtype=self.action_out_proj.weight.dtype)
 
         def action_out_proj_func(suffix_out: Tensor) -> Tensor:
             return self.action_out_proj(suffix_out)
@@ -1056,6 +1061,11 @@ class Pi05Model(Model):
         noise = self.sample_noise(actions.shape, device)
         time = self.sample_time(bsize, device)
 
+        # Cast to actions dtype so bf16-true doesn't get float32 in backward
+        model_dtype = actions.dtype
+        noise = noise.to(dtype=model_dtype)
+        time = time.to(dtype=model_dtype)
+
         time_expanded = time[:, None, None]
         x_t = time_expanded * noise + (1 - time_expanded) * actions
         u_t = noise - actions
@@ -1091,14 +1101,14 @@ class Pi05Model(Model):
 
             if cd_idx.numel() > 0:
                 cd_actions_shape = (cd_idx.numel(), *actions.shape[1:])
-                x_1 = self.sample_noise(cd_actions_shape, device)
+                x_1 = self.sample_noise(cd_actions_shape, device).to(dtype=model_dtype)
                 cd_prefix_embs = prefix_embs[cd_idx]
                 cd_prefix_pad_masks = prefix_pad_masks[cd_idx]
                 cd_prefix_att_masks = prefix_att_masks[cd_idx]
 
                 with torch.no_grad():
                     cd_bsize = cd_idx.numel()
-                    t1 = torch.ones(cd_bsize, device=device)
+                    t1 = torch.ones(cd_bsize, device=device, dtype=model_dtype)
                     v_1 = self._predict_velocity(
                         x_1,
                         t1,
@@ -1108,7 +1118,7 @@ class Pi05Model(Model):
                         cd_prefix_att_masks,
                     )
                     x_half = x_1 - 0.5 * v_1
-                    t_half = torch.full((cd_bsize,), 0.5, device=device)
+                    t_half = torch.full((cd_bsize,), 0.5, device=device, dtype=model_dtype)
                     v_half = self._predict_velocity(
                         x_half,
                         t_half,
@@ -1119,8 +1129,8 @@ class Pi05Model(Model):
                     )
                     v_target = 0.5 * (v_1 + v_half)
 
-                t1 = torch.ones(cd_idx.numel(), device=device)
-                t_zero = torch.zeros(cd_idx.numel(), device=device)
+                t1 = torch.ones(cd_idx.numel(), device=device, dtype=model_dtype)
+                t_zero = torch.zeros(cd_idx.numel(), device=device, dtype=model_dtype)
                 v_pred = self._predict_velocity(
                     x_1,
                     t1,
@@ -1417,5 +1427,5 @@ class Pi05Model(Model):
 
         suffix_out = outputs_embeds[1]  # type: ignore[index]
         suffix_out = suffix_out[:, -self._chunk_size :]  # type: ignore[index]
-        suffix_out = suffix_out.to(dtype=torch.float32)
+        suffix_out = suffix_out.to(dtype=self.action_out_proj.weight.dtype)
         return self.action_out_proj(suffix_out)

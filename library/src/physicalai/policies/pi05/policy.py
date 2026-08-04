@@ -621,6 +621,11 @@ class Pi05(ExportablePolicyMixin, Policy):
 
         return self._postprocessor({ACTION: actions})[ACTION]
 
+    def on_after_backward(self) -> None:
+        """Free cached XPU memory after backward, before Adam update, to prevent OOM on 32 GB devices."""
+        if hasattr(torch, "xpu"):
+            torch.xpu.empty_cache()
+
     def training_step(self, batch: Observation, batch_idx: int) -> torch.Tensor:
         """Lightning training step.
 
@@ -651,6 +656,7 @@ class Pi05(ExportablePolicyMixin, Policy):
             weight_decay=self.config.optimizer_weight_decay,
             betas=self.config.optimizer_betas,
             eps=self.config.optimizer_eps,
+            foreach=False,  # Disable multi-tensor ops to reduce peak XPU memory
         )
 
         num_training_steps = self.trainer.estimated_stepping_batches

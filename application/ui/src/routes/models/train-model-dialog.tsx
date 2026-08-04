@@ -229,6 +229,7 @@ const TrainingDeviceInfo = ({ isRemoteTarget, remoteHealth, isCheckingRemote }: 
 
 const RECOMMENDED_PRECISION: Record<string, string> = {
     cuda: 'bf16-mixed',
+    xpu: 'bf16-true',
 };
 
 const PRECISION_LABELS: Record<string, string> = {
@@ -421,7 +422,7 @@ export const TrainModelDialog = ({ baseModel, close, defaultMaxSteps = 10000 }: 
     const [batchSize, setBatchSize] = useState<number>(8);
     const [numWorkers, setNumWorkers] = useState<Key | null>('auto');
     const [autoScaleBatchSize, setAutoScaleBatchSize] = useState<boolean>(bestDevice?.type === 'cuda');
-    const [precision, setPrecision] = useState<Key | null>(bestDevice?.type === 'cuda' ? 'bf16-mixed' : '32-true');
+    const [precision, setPrecision] = useState<Key | null>(bestDevice?.type === 'cuda' ? 'bf16-mixed' : bestDevice?.type === 'xpu' ? 'bf16-true' : '32-true');
     const [compileModel, setCompileModel] = useState<boolean>(false);
     const [remoteTrainerId, setRemoteTrainerId] = useState<Key | null>('local');
     const isRemoteTarget = remoteTrainerId !== null && remoteTrainerId !== 'local';
@@ -443,6 +444,9 @@ export const TrainModelDialog = ({ baseModel, close, defaultMaxSteps = 10000 }: 
         if (activeDevice?.type === 'cuda') {
             setPrecision('bf16-mixed');
             setAutoScaleBatchSize(true);
+        } else if (activeDevice?.type === 'xpu') {
+            setPrecision('bf16-true');
+            setAutoScaleBatchSize(false);
         } else {
             setPrecision('32-true');
             setAutoScaleBatchSize(false);
