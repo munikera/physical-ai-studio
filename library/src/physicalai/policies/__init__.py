@@ -13,6 +13,7 @@ from .lerobot import get_lerobot_policy
 from .pi0 import Pi0, Pi0Config, Pi0Model
 from .pi05 import Pi05, Pi05Config, Pi05Model
 from .smolvla import SmolVLA, SmolVLAConfig, SmolVLAModel
+from .vla_jepa import VlaJepa, VlaJepaConfig, VlaJepaModel
 
 __all__ = [
     # ACT
@@ -36,6 +37,10 @@ __all__ = [
     "SmolVLA",
     "SmolVLAConfig",
     "SmolVLAModel",
+    # VLA-JEPA
+    "VlaJepa",
+    "VlaJepaConfig",
+    "VlaJepaModel",
     # Utils
     "get_physicalai_policy_class",
     "get_policy",
@@ -139,5 +144,7 @@ def get_physicalai_policy_class(policy_name: str) -> type[Policy]:
         return Pi05
     if policy_name == "smolvla":
         return SmolVLA
-    msg = f"Unknown physicalai policy: {policy_name}. Supported policies: act, dummy, groot, pi0, pi05, smolvla"
+    if policy_name == "vla_jepa":
+        return VlaJepa
+    msg = f"Unknown physicalai policy: {policy_name}. Supported policies: act, dummy, groot, pi0, pi05, smolvla, vla_jepa"
     raise ValueError(msg)

@@ -488,6 +488,14 @@ class ExportablePolicyMixin:
             self.model.eval()
 
             if extra_model_args.via_onnx:
+                # OpenVINO's ONNX frontend rejects mixed bf16 weights + f32 activations.
+                # Cast to float32 so the ONNX graph is uniform; compress_to_fp16 on
+                # save_model restores FP16 precision for runtime inference.
+                self.model.to(torch.float32)
+                input_sample = {
+                    k: v.to(torch.float32) if isinstance(v, torch.Tensor) and v.is_floating_point() else v
+                    for k, v in input_sample.items()
+                }
                 with tempfile.NamedTemporaryFile(suffix=".onnx") as tmp:
                     self._onnx_core_export_step(
                         model_path=Path(tmp.name),

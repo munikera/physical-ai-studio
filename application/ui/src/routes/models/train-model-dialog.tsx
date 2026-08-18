@@ -77,6 +77,12 @@ export const MODELS: ReadonlyArray<{
         description: 'Enhanced Pi0 with discrete state encoding and longer context',
         minVRAM: 16 * GB,
     },
+    {
+        id: 'vla_jepa',
+        name: 'VLA-JEPA',
+        description: 'Qwen3-VL-2B + V-JEPA 2 ViT-L + DiT-B flow-matching action head (ECCV 2026)',
+        minVRAM: 32 * GB,
+    },
 ];
 
 interface TrainModelDialogProps {

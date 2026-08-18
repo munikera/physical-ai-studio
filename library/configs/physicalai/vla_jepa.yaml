@@ -1,0 +1,81 @@
+# VLA-JEPA Policy Training Configuration for SO-ARM 101
+#
+# Usage:
+#   cd /home/devcloud/munikera/physical-ai-studio/library
+#   ZE_AFFINITY_MASK=0 physicalai fit --config configs/physicalai/vla_jepa.yaml
+#
+# Prerequisites:
+#   Download V-JEPA 2 ViT-L:
+#     huggingface-cli download facebook/vjepa2-vitl-fpc64-256 \
+#       --local-dir /home/devcloud/munikera/checkpoints/vjepa2-vitl-fpc64-256
+#
+#   Download Qwen3-VL-2B:
+#     huggingface-cli download Qwen/Qwen3-VL-2B-Instruct \
+#       --local-dir /home/devcloud/munikera/checkpoints/Qwen3-VL-2B-Instruct
+
+model:
+  class_path: physicalai.policies.VlaJepa
+  init_args:
+    # Model checkpoints — update to local paths after downloading
+    qwen_model_name: "/checkpoints/Qwen3-VL-2B-Instruct"
+    vjepa_encoder_name: "/checkpoints/vjepa2-vitl-fpc64-256"
+
+    # SO-ARM 101: 6 DOF (shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper)
+    action_dim: 6
+    state_dim: 6
+    chunk_size: 7
+    n_action_steps: 1
+
+    # V-JEPA frame count: 8 is safe on 32 GB XPU (model trained on 64)
+    num_frames: 8
+    video_resolution: 256
+
+    # Fine-tuning: freeze visual backbones, train action head + projectors
+    freeze_vjepa_encoder: true
+    freeze_qwen_vision: true
+    freeze_qwen_llm: false
+
+    # Differential learning rates
+    lr_backbone: 1.0e-5
+    lr_action_head: 1.0e-4
+
+    optimizer_betas: [0.9, 0.95]
+    optimizer_eps: 1.0e-8
+    optimizer_weight_decay: 1.0e-8
+    optimizer_grad_clip_norm: 1.0
+
+    # ~5% warmup over 10k steps, then cosine decay
+    scheduler_warmup_steps: 500
+    scheduler_decay_steps: 10000
+    scheduler_decay_lr: 1.0e-6
+
+    # DiT action head diffusion
+    num_diffusion_steps_train: 1000
+    num_diffusion_steps_infer: 4
+
+    # Memory optimization for 32 GB XPU
+    enable_gradient_checkpointing: true
+
+    tokenizer_max_length: 256
+    image_resize: [224, 224]
+
+data:
+  class_path: physicalai.data.lerobot.LeRobotDataModule
+  init_args:
+    # Physical AI Studio dataset (222-episode sorting dataset, LeRobot v3.0)
+    # Mounted from docker_physical-ai-studio-storage volume at /app/datasets
+    repo_id: "bcdf34ee-97b1-4c89-8be7-c3045b24ae49"
+    root: "/app/storage/datasets/bcdf34ee-97b1-4c89-8be7-c3045b24ae49"
+    train_batch_size: 8    # adjust up if memory allows
+    data_format: "physicalai"
+
+trainer:
+  max_epochs: 100
+  # Intel XPU
+  accelerator: gpu
+  devices: 1
+  precision: 32
+  log_every_n_steps: 10
+  check_val_every_n_epoch: 10
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 4  # effective batch size = 32

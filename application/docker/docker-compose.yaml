@@ -133,6 +133,15 @@ services:
       - SYCL_CACHE_PERSISTENT=${SYCL_CACHE_PERSISTENT:-1}
       - SYCL_CACHE_DIR=${SYCL_CACHE_DIR:-'/app/storage/.sycl-cache'}
       - SYCL_UR_USE_LEVEL_ZERO_V2=${SYCL_UR_USE_LEVEL_ZERO_V2:-0}
+      # VLA-JEPA: make the mounted library source take precedence over the installed package
+      - PYTHONPATH=/app/library_src:/app/application/backend/src:/app/application/backend
+    volumes:
+      - physical-ai-studio-data:/app/data
+      - physical-ai-studio-storage:/app/storage
+      # VLA-JEPA: live-mount policy source (changes reflect without container rebuild)
+      - /home/devcloud/munikera/physical-ai-studio/library/src:/app/library_src
+      # Model checkpoints
+      - /home/devcloud/munikera/checkpoints:/checkpoints:ro
     # --- Non-privileged XPU additions
     # When running in non-privileged mode, add these to grant
     # Intel GPU access via /dev/dri/renderD* nodes:

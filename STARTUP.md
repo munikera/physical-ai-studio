@@ -6,6 +6,17 @@ Steps used to build and run Physical AI Studio on this machine (Intel Battlemage
 
 - Docker Engine 24.0+ with Docker Compose v2.24.0+
 - Intel XPU hardware (run `lspci | grep -i vga` to confirm)
+- Git and a GitHub account with access to the fork
+
+## 0. Clone the repository
+
+Use the **munikera fork** (not the upstream), which contains the XPU training fixes:
+
+```bash
+git clone https://github.com/munikera/physical-ai-studio.git
+cd physical-ai-studio
+git checkout pi05-training-on-arc-pro
+```
 
 ## 1. Fix Docker file-descriptor limit
 
