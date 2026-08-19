@@ -52,8 +52,8 @@ class VlaJepaConfig(Config):
         enable_gradient_checkpointing: Reduce activation memory at cost of recompute.
     """
 
-    chunk_size: int = 7
-    n_action_steps: int = 7
+    chunk_size: int = 50
+    n_action_steps: int = 50
 
     action_dim: int = 6   # SO-ARM 101: 6 DOF (includes gripper as 6th joint)
     state_dim: int = 6
@@ -61,7 +61,7 @@ class VlaJepaConfig(Config):
     # Gripper binarization (inference only)
     gripper_dim: int = 5          # 0-indexed; last joint for SO-ARM 101 (action_dim - 1)
     gripper_threshold: float = 0.5
-    binarize_gripper_action: bool = True
+    binarize_gripper_action: bool = False
 
     # Model checkpoints (set to local paths after downloading)
     qwen_model_name: str = "Qwen/Qwen3-VL-2B-Instruct"
@@ -71,8 +71,8 @@ class VlaJepaConfig(Config):
 
     # Fine-tuning freezing
     freeze_vjepa_encoder: bool = True
-    freeze_qwen_vision: bool = True
-    freeze_qwen_llm: bool = False
+    freeze_qwen_vision: bool = False
+    freeze_qwen_llm: bool = True
 
     # Optimizer — differential LRs
     lr_backbone: float = 1e-5

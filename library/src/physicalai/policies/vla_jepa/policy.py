@@ -55,8 +55,8 @@ class VlaJepa(ExportablePolicyMixin, Policy):
     def __init__(  # noqa: PLR0913
         self,
         qwen_model_name: str = "/checkpoints/Qwen3-VL-2B-Instruct",
-        chunk_size: int = 7,
-        n_action_steps: int = 7,
+        chunk_size: int = 50,
+        n_action_steps: int = 50,
         action_dim: int = 6,
         state_dim: int = 6,
         *,
@@ -83,7 +83,7 @@ class VlaJepa(ExportablePolicyMixin, Policy):
         pretrained_checkpoint: str = "/checkpoints/vla-jepa-pretrain/Pretrain/checkpoints/VLA-JEPA-pretrain.pt",
         gripper_dim: int = 5,
         gripper_threshold: float = 0.5,
-        binarize_gripper_action: bool = True,
+        binarize_gripper_action: bool = False,
         dataset_stats: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         super().__init__(n_action_steps=n_action_steps)
