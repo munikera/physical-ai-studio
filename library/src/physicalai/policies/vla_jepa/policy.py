@@ -60,7 +60,7 @@ class VlaJepa(ExportablePolicyMixin, Policy):
         action_dim: int = 6,
         state_dim: int = 6,
         *,
-        freeze_qwen_vision: bool = False,
+        freeze_qwen_vision: bool = True,
         freeze_qwen_llm: bool = True,
         lr_backbone: float = 1e-5,
         lr_action_head: float = 1e-4,

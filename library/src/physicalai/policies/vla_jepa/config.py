@@ -71,7 +71,7 @@ class VlaJepaConfig(Config):
 
     # Fine-tuning freezing
     freeze_vjepa_encoder: bool = True
-    freeze_qwen_vision: bool = False
+    freeze_qwen_vision: bool = True
     freeze_qwen_llm: bool = True
 
     # Optimizer — differential LRs
