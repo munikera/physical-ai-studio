@@ -89,7 +89,7 @@ class VlaJepaConfig(Config):
 
     # DiT action head
     num_diffusion_steps_train: int = 1000
-    num_diffusion_steps_infer: int = 4
+    num_diffusion_steps_infer: int = 10
 
     # Beta noise schedule (paper: α=1.5, β=1.0, s=0.999)
     noise_beta_alpha: float = 1.5

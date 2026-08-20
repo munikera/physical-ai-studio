@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING, Any, cast
 
 import torch
@@ -156,6 +157,7 @@ class VlaJepa(ExportablePolicyMixin, Policy):
 
         self.model: VlaJepaModel | None = None
         self._dataset_stats = dataset_stats
+        self._action_steps: int | None = None  # resolved lazily
 
         if dataset_stats is not None:
             self._build_model(dataset_stats)
@@ -321,6 +323,24 @@ class VlaJepa(ExportablePolicyMixin, Policy):
             return self.model(model_batch)
         return self.predict_action_chunk(batch)
 
+    def _executed_action_steps(self) -> int:
+        if self._action_steps is None:
+            env_val = os.environ.get("PHYSICALAI_ACTION_STEPS")
+            if env_val is not None:
+                requested = int(env_val)
+            else:
+                requested = self.config.n_action_steps
+            clamped = max(1, min(requested, self.config.chunk_size))
+            if clamped != requested:
+                logger.warning(
+                    "PHYSICALAI_ACTION_STEPS=%d clamped to [1, chunk_size=%d] → %d",
+                    requested,
+                    self.config.chunk_size,
+                    clamped,
+                )
+            self._action_steps = clamped
+        return self._action_steps
+
     @torch.no_grad()
     def predict_action_chunk(self, batch: Observation) -> torch.Tensor:
         if self.model is None:
@@ -328,7 +348,9 @@ class VlaJepa(ExportablePolicyMixin, Policy):
             raise RuntimeError(msg)
 
         model_batch = self._obs_to_model_batch(batch)
-        return self.model.predict_action_chunk(model_batch)
+        actions = self.model.predict_action_chunk(model_batch)
+        steps = self._executed_action_steps()
+        return actions[:, :steps] if actions.dim() == 3 else actions[:steps]
 
     # ------------------------------------------------------------------
     # Lightning hooks
